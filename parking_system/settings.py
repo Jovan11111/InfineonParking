@@ -28,6 +28,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['infineonparking-production.up.railway.app']
 
+CSRF_TRUSTED_ORIGINS = ["https://infineonparking-production.up.railway.app"]
 
 # Application definition
 
