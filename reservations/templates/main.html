@@ -18,7 +18,8 @@
              data-spot-id="{{ spot.id }}"
              data-reserved-by="{{ spot.reserved_by }}">
             {% if spot.reserved %}
-                {{ spot.reserved_by }}
+                {{ spot.reserved_by }}  <br>
+                {{ spot.number }}
             {% else %}
                 {{ spot.number }}
             {% endif %}
