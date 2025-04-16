@@ -59,6 +59,7 @@ document.addEventListener("DOMContentLoaded", function() {
         datePicker.value = selectedDate;
     } else {
         datePicker.value = today;
+        alert("Unos nije prihvacen! Izabrani datum mora biti između danas i 7 dana unapred");
     }
 
     datePicker.addEventListener("change", function() {
