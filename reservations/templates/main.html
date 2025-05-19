@@ -26,7 +26,19 @@
         </div>
     {% endfor %}
 </div>
-
+<div class="mt-6 flex justify-center">
+    <form method="POST" action="{% url 'interest_queue' %}" id="interest-form">
+        {% csrf_token %}
+        <input type="hidden" name="date" value="{{ date_selected }}">
+        <button type="submit" 
+                class="px-6 py-2 rounded-lg text-white font-semibold 
+                       transition duration-200
+                       {% if all_spots_taken %} bg-blue-600 hover:bg-blue-700 {% else %} bg-blue-300 cursor-not-allowed {% endif %}"
+                {% if not all_spots_taken %} disabled {% endif %}>
+            Zainteresovan
+        </button>
+    </form>
+</div>
 <div class="mt-6 flex justify-center">
     <form method="POST" action="{% url 'logout_user' %}">
         {% csrf_token %}
@@ -42,10 +54,11 @@
 document.addEventListener("DOMContentLoaded", function() {
     let datePicker = document.getElementById("date-picker");
 
-    let today = new Date().toISOString().split('T')[0];
+    let today = new Date().toLocaleString("sv", { timeZone: "CET"}).split(' ')[0];
+    
     let maxDate = new Date();
     maxDate.setDate(maxDate.getDate() + 7);
-    maxDate = maxDate.toISOString().split('T')[0];
+    maxDate = maxDate.toLocaleString("sv", { timeZone: "CET"}).split(' ')[0];
 
     datePicker.min = today;
     datePicker.max = maxDate;
@@ -59,7 +72,6 @@ document.addEventListener("DOMContentLoaded", function() {
         datePicker.value = selectedDate;
     } else {
         datePicker.value = today;
-        alert("Unos nije prihvacen! Izabrani datum mora biti između danas i 7 dana unapred");
     }
 
     datePicker.addEventListener("change", function() {
@@ -120,6 +132,19 @@ document.addEventListener("DOMContentLoaded", function() {
             });
         }
     });
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('interest-form');
+
+    
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            e.preventDefault(); 
+            alert("Upamćeno je da ste zainteresovani!");
+            form.submit(); 
+        });
+    }
 });
 </script>
 
