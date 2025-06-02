@@ -52,6 +52,10 @@ Users can cancel their own reservations.
 - Click to unreserve the spot.
 - Confirm the action, after which the spot becomes available again.
 
+### Waitlist
+If all the parking spots are reserved for a some day, users can insert themselves into the waitlist for that day by clicking the "Zainteresovan" button.
+If someone unreserves a spot, the first in the waitling list will automatically be assigned that spot, and will receive an email about it
+
 ### Admin Management
 Superusers can manage reservations and oversee the system.
 - View all reservations.
