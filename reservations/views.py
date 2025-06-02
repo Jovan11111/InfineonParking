@@ -66,10 +66,13 @@ def main_page(request):
         not already_in_queue
     )
 
+    num_interested = WaitlistEntry.objects.filter(date=date).count()
+
     context = {
         'spots': spots,
         'all_spots_taken': all_spots_taken,
-        'date_selected': date
+        'date_selected': date,
+        'num_interested': num_interested
     }
 
     return render(request, 'main.html', context)

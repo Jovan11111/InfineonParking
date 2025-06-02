@@ -30,6 +30,7 @@
     <form method="POST" action="{% url 'interest_queue' %}" id="interest-form">
         {% csrf_token %}
         <input type="hidden" name="date" value="{{ date_selected }}">
+        <p class="mb-2">Broj zainteresovanih: {{ num_interested }}</p>
         <button type="submit" 
                 class="px-6 py-2 rounded-lg text-white font-semibold 
                        transition duration-200
