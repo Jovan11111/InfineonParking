@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Base Title{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    {% load pwa %}
+    {% progressive_web_app_meta %}
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen">
     <div class="w-full max-w-2xl p-6 bg-white shadow-md rounded-lg">

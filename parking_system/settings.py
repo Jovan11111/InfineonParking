@@ -22,11 +22,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('SECRET_KEY')
-
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ['infineonparking-production.up.railway.app']
+ALLOWED_HOSTS = ['infineonparking-production.up.railway.app', '127.0.0.1', 'localhost']
 
 CSRF_TRUSTED_ORIGINS = ["https://infineonparking-production.up.railway.app"]
 
@@ -40,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'reservations',
+    'pwa'
 ]
 
 MIDDLEWARE = [
@@ -79,7 +79,16 @@ WSGI_APPLICATION = 'parking_system.wsgi.application'
 DATABASES = {  
     'default': dj_database_url.config(default=os.getenv('DATABASE_URL'))  
 }
-
+#DATABASES = {
+#    'default': {
+#        'ENGINE': 'django.db.backends.mysql',
+#        'NAME': 'infineon_parking',
+#        'USER': 'root',
+#        'PASSWORD': 'password',
+#        'HOST': 'localhost', 
+#        'PORT': '3306', 
+#    }
+#}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
@@ -117,7 +126,15 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+
+import os
+
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, "static")
+]
+
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')  # za collectstatic
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -131,3 +148,27 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL')
+
+PWA_APP_NAME = 'Infineon Parking'
+PWA_APP_DESCRIPTION = "Rezervisanje parking mesta"
+PWA_APP_THEME_COLOR = '#000000'
+PWA_APP_BACKGROUND_COLOR = '#ffffff'
+PWA_APP_DISPLAY = 'standalone'
+PWA_APP_SCOPE = '/'
+PWA_APP_ORIENTATION = 'portrait'
+PWA_APP_START_URL = '/'
+PWA_APP_STATUS_BAR_COLOR = 'default'
+PWA_APP_ICONS = [
+    {
+        'src': '/static/icons/icon-192.png',
+        'sizes': '192x192',
+        'type': 'image/png',
+    },
+    {
+        'src': '/static/icons/icon-512.png',
+        'sizes': '512x512',
+        'type': 'image/png',
+    },
+]
+PWA_APP_DIR = 'ltr'
+PWA_APP_LANG = 'en-US'
