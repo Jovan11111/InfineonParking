@@ -32,6 +32,23 @@
         {% endif %}
     </div>
     <div>
+        <label class="block text-sm font-medium text-gray-700">Firma</label>
+        <select name="{{ form.company.name }}"
+                class="w-full px-4 py-2 border rounded-lg bg-inherit focus:outline-none focus:ring-2 focus:ring-blue-400"
+                required>
+            <option value="">Izaberi firmu</option>
+            {% for company in form.fields.company.queryset %}
+                <option value="{{ company.id }}"
+                    {% if form.data.company == company.id|stringformat:"s" %}selected{% endif %}>
+                    {{ company.name }}
+                </option>
+            {% endfor %}
+        </select>
+        {% if form.company.errors %}
+            <p class="text-red-500 text-sm">{{ form.company.errors.0 }}</p>
+        {% endif %}
+    </div>
+    <div>
         <label class="block text-sm font-medium text-gray-700">Lozinka</label>
         <input type="password" name="{{ form.password1.name }}" 
                 class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" 

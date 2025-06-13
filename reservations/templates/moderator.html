@@ -1,0 +1,21 @@
+{% extends './base.html' %}
+
+{% block title %}Admin panel{% endblock %}
+
+{% block content %}
+<h2 class="text-2xl font-bold text-center mb-6">Admin panel</h2>
+
+<p>Parking Mesta</p>
+    {% for spot in spots %}
+        <div>
+            {{ spot.number }}
+        </div>
+    {% endfor %}
+
+<p>Dodaj parking mesto</p>
+<form method="POST" action="{% url 'add_spot' company_id%}">
+    {% csrf_token %}
+    <input type="text" placeholder="broj mesta", name="spot_num">
+    <button>Dodaj Mesto</button>
+</form>
+{% endblock %}

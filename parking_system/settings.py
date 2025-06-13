@@ -21,7 +21,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('SECRET_KEY')
+#SECRET_KEY = os.getenv('SECRET_KEY')
+SECRET_KEY = 'django-insecure-^+d#u8o)1(x5-2eh*x4!_y_r!&3%g-a8o)%c0c%l^mn1pjwk0)'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
@@ -77,19 +78,19 @@ WSGI_APPLICATION = 'parking_system.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-DATABASES = {  
-    'default': dj_database_url.config(default=os.getenv('DATABASE_URL'))  
-}
-#DATABASES = {
-#    'default': {
-#        'ENGINE': 'django.db.backends.mysql',
-#        'NAME': 'infineon_parking',
-#        'USER': 'root',
-#        'PASSWORD': 'password',
-#        'HOST': 'localhost', 
-#        'PORT': '3306', 
-#    }
+#DATABASES = {  
+#    'default': dj_database_url.config(default=os.getenv('DATABASE_URL'))  
 #}
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'infineon_parking',
+        'USER': 'root',
+        'PASSWORD': 'password',
+        'HOST': 'localhost', 
+        'PORT': '3306', 
+    }
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
@@ -110,7 +111,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # Use the custom user model
-#AUTH_USER_MODEL = 'reservations.User'
+AUTH_USER_MODEL = 'reservations.CustomUser'
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
@@ -135,7 +136,9 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static")
 ]
 
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')  # za collectstatic
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles') 
+
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field

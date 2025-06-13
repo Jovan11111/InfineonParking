@@ -5,21 +5,23 @@ from .forms import CustomUserCreationForm
 from datetime import datetime
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
-from .models import Reservation, ParkingSpot, WaitlistEntry
+from .models import Reservation, ParkingSpot, WaitlistEntry, Company
 from django.http import JsonResponse
 from django.core.mail import send_mail
 import json
 
 def login_user(request):
     if request.user.is_authenticated:
-        return redirect('/main')
+        if not request.user.company:
+                return redirect('/logout')
+        return redirect('company', id=request.user.company.id)
 
     if request.method == 'POST':
         form = AuthenticationForm(data=request.POST)
         if form.is_valid():
             user = form.get_user()
             login(request, user)
-            return redirect('/main') 
+            return redirect('company', id=user.company.id) 
     else:
         form = AuthenticationForm()
     return render(request, 'login.html', {'form': form})
@@ -35,47 +37,13 @@ def register_user(request):
         if form.is_valid():
             user = form.save()
             login(request, user)
-            return redirect('/main')
+            return redirect('/company', id=user.company.id)
     context = {'form': form}
     return render(request, 'register.html', context)
 
 @login_required
 def main_page(request):
-    date = request.GET.get('date', datetime.today().strftime('%Y-%m-%d'))
-    spots = ParkingSpot.objects.all()
-    user = request.user
-
-    user_has_reservation = False
-
-    for spot in spots:
-        reservation = Reservation.objects.filter(date=date, spot=spot).first()
-        if reservation:
-            spot.reserved = True
-            spot.reserved_by = reservation.user.username
-            if reservation.user == user:
-                user_has_reservation = True
-        else:
-            spot.reserved = False
-            spot.reserved_by = None
-
-    already_in_queue = WaitlistEntry.objects.filter(user=user, date=date).exists()
-
-    all_spots_taken = (
-        all(s.reserved for s in spots) and 
-        not user_has_reservation and 
-        not already_in_queue
-    )
-
-    num_interested = WaitlistEntry.objects.filter(date=date).count()
-
-    context = {
-        'spots': spots,
-        'all_spots_taken': all_spots_taken,
-        'date_selected': date,
-        'num_interested': num_interested
-    }
-
-    return render(request, 'main.html', context)
+    return render(request, 'main.html', {})
 
 
 @csrf_exempt
@@ -150,8 +118,64 @@ def interest_queue(request):
         try:
             date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
         except (ValueError, TypeError):
-            return redirect('/main')
+            return redirect('/company', id=user.company.id)
 
         WaitlistEntry.objects.create(user=user, date=date_obj)
 
-    return redirect('/main')
+    return redirect('/company', id=user.company.id)
+
+def company(request, id):
+    date = request.GET.get('date', datetime.today().strftime('%Y-%m-%d'))
+    company = Company.objects.get(id=id)
+    spots = ParkingSpot.objects.filter(company=company)
+    user = request.user
+    user_has_reservation = False
+
+    for spot in spots:
+        reservation = Reservation.objects.filter(date=date, spot=spot).first()
+        if reservation:
+            spot.reserved = True
+            spot.reserved_by = reservation.user.username
+            if reservation.user == user:
+                user_has_reservation = True
+        else:
+            spot.reserved = False
+            spot.reserved_by = None
+
+    already_in_queue = WaitlistEntry.objects.filter(user=user, date=date).exists()
+
+    all_spots_taken = (
+        all(s.reserved for s in spots) and 
+        not user_has_reservation and 
+        not already_in_queue
+    )
+
+    num_interested = WaitlistEntry.objects.filter(date=date).count()
+
+    context = {
+        'moderator_status' : user.is_moderator,
+        'company_id' : user.company.id,
+        'spots': spots,
+        'all_spots_taken': all_spots_taken,
+        'date_selected': date,
+        'num_interested': num_interested
+    }
+
+    return render(request, 'company.html', context)
+
+@login_required
+def moderator(request, id):
+    spots = ParkingSpot.objects.filter(company=id)
+    context = {
+        'spots' : spots,
+        'company_id' : id
+    }
+    return render(request, 'moderator.html', context)
+
+@login_required
+def add_parking_spot(request, id):
+    spot_number = request.POST.get("spot_num")
+    company = Company.objects.get(id=id)
+    ParkingSpot.objects.create(number=spot_number, company=company)
+
+    return redirect('moderator', id=id)
