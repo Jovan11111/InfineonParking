@@ -1,19 +1,21 @@
 from django.shortcuts import render, redirect
+from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.forms import AuthenticationForm
 from .forms import CustomUserCreationForm
 from datetime import datetime
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
-from .models import Reservation, ParkingSpot, WaitlistEntry, Company
+from .models import Reservation, ParkingSpot, WaitlistEntry, Company, CustomUser
 from django.http import JsonResponse
 from django.core.mail import send_mail
 import json
 
+
 def login_user(request):
     if request.user.is_authenticated:
         if not request.user.company:
-                return redirect('/logout')
+                return redirect('logout_user')
         return redirect('company', id=request.user.company.id)
 
     if request.method == 'POST':
@@ -37,7 +39,7 @@ def register_user(request):
         if form.is_valid():
             user = form.save()
             login(request, user)
-            return redirect('/company', id=user.company.id)
+            return redirect('company', id=user.company.id)
     context = {'form': form}
     return render(request, 'register.html', context)
 
@@ -67,7 +69,6 @@ def reserve_spot(request):
 
     return JsonResponse({"success": False, "error": "Invalid request method"})
 
-@csrf_exempt
 @login_required
 def unreserve_spot(request):
     if request.method == "POST":
@@ -81,12 +82,12 @@ def unreserve_spot(request):
         if not reservation:
             return JsonResponse({"success": False, "error": "No reservation found!"})
 
-        if request.user != reservation.user and not request.user.is_superuser:
+        if request.user != reservation.user and not request.user.is_moderator and not request.user.is_superuser:
             return JsonResponse({"success": False, "error": "You can only cancel your own reservation!"})
 
         reservation.delete()
         
-        entry = WaitlistEntry.objects.filter(date=date).order_by('timestamp').first()
+        entry = WaitlistEntry.objects.filter(date=date, company=request.user.company).order_by('timestamp').first()
         
         if not entry:
             return JsonResponse({"success": True})
@@ -97,14 +98,13 @@ def unreserve_spot(request):
             date=date
         )
 
-        send_mail(
-            subject="Parking spot reserved for you!",
-            message=f"You have been automatically assigned a spot ({spot}) for {date}.",
-            from_email="infineonparking@gmail.com",
-            recipient_list=[entry.user.email],
-            fail_silently=False,
-        )
-
+        #send_mail(
+        #    subject="Parking spot reserved for you!",
+        #    message=f"You have been automatically assigned a spot ({spot}) for {date}.",
+        #    from_email="infineonparking@gmail.com",
+        #    recipient_list=[entry.user.email],
+        #    fail_silently=False,
+        #)
         entry.delete()
 
         return JsonResponse({"success": True})
@@ -118,13 +118,16 @@ def interest_queue(request):
         try:
             date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
         except (ValueError, TypeError):
-            return redirect('/company', id=user.company.id)
+            return redirect('company', id=user.company.id)
 
-        WaitlistEntry.objects.create(user=user, date=date_obj)
+        WaitlistEntry.objects.create(user=user, date=date_obj, company=user.company)
 
-    return redirect('/company', id=user.company.id)
+    return redirect('company', id=user.company.id)
 
 def company(request, id):
+    if request.user.company.id != id:
+        return redirect('company', id=request.user.company.id)
+    
     date = request.GET.get('date', datetime.today().strftime('%Y-%m-%d'))
     company = Company.objects.get(id=id)
     spots = ParkingSpot.objects.filter(company=company)
@@ -150,7 +153,7 @@ def company(request, id):
         not already_in_queue
     )
 
-    num_interested = WaitlistEntry.objects.filter(date=date).count()
+    num_interested = WaitlistEntry.objects.filter(date=date, company=user.company).count()
 
     context = {
         'moderator_status' : user.is_moderator,
@@ -165,17 +168,49 @@ def company(request, id):
 
 @login_required
 def moderator(request, id):
+    if not request.user.is_moderator or request.user.company.id != id:
+        return redirect('company', id=request.user.company.id)
+    
     spots = ParkingSpot.objects.filter(company=id)
+    users = CustomUser.objects.filter(company=id)
+    usernames = [user.username for user in users]
     context = {
         'spots' : spots,
-        'company_id' : id
+        'company_id' : id,
+        'usernames': usernames
     }
     return render(request, 'moderator.html', context)
 
 @login_required
 def add_parking_spot(request, id):
+    if not request.user.is_moderator or request.user.company.id != id:
+        return redirect('company', id=request.user.company.id)
     spot_number = request.POST.get("spot_num")
     company = Company.objects.get(id=id)
+    if ParkingSpot.objects.filter(number=spot_number, company=company).exists():
+        messages.error(request, f"Mesto sa brojem {spot_number} već postoji.")
+        return redirect('moderator', id=id)
     ParkingSpot.objects.create(number=spot_number, company=company)
 
     return redirect('moderator', id=id)
+
+
+@login_required
+def remove_user(request, id):
+    if not request.user.is_moderator or request.user.company.id != id:
+        return redirect('company', id=request.user.company.id)
+    user = CustomUser.objects.filter(username=request.POST.get("username")).first()
+    if user:
+        user.delete()
+    return redirect('moderator', id=id)
+
+@login_required
+def remove_spot(request, id):
+    if not request.user.is_moderator or request.user.company.id != id:
+        return redirect('company', id=request.user.company.id)
+    
+    spot = ParkingSpot.objects.filter(id = request.POST.get("spot_id")).first()
+    if spot:
+        spot.delete()
+
+    return redirect('moderator', id)

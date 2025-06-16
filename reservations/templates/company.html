@@ -126,7 +126,7 @@ document.addEventListener("DOMContentLoaded", function() {
         let reservedBy = spot.dataset.reservedBy;
         let currentUser = "{{ request.user.username }}";
 
-        if (reservedBy === currentUser || "{{ request.user.is_superuser }}" === "True") {
+        if (reservedBy === currentUser || "{{ request.user.is_superuser }}" || "{{ request.user.is_moderator }}" === "True") {
             spot.addEventListener("click", function() {
                 let spotId = this.dataset.spotId;
                 if (confirm("Da li ste sigurni da ne zelite da ovo mesto bude neregistrovano?")) {

@@ -8,7 +8,9 @@ from reservations.views import  login_user, \
                                 interest_queue, \
                                 company, \
                                 moderator, \
-                                add_parking_spot
+                                add_parking_spot, \
+                                remove_user, \
+                                remove_spot
 
 urlpatterns = [
     path('', login_user, name='login_user'),
@@ -20,5 +22,7 @@ urlpatterns = [
     path('interest_queue', interest_queue, name='interest_queue'),
     path('company/<int:id>/', company, name='company'),
     path('company/<int:id>/admin/', moderator, name='moderator'),
-    path('add_spot/<int:id>', add_parking_spot, name="add_spot")
+    path('add_spot/<int:id>', add_parking_spot, name='add_spot'),
+    path('remove_user/<int:id>', remove_user, name='remove_user'),
+    path('remove_spot/<int:id>', remove_spot, name="remove_spot")
 ]

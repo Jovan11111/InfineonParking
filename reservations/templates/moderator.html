@@ -3,19 +3,87 @@
 {% block title %}Admin panel{% endblock %}
 
 {% block content %}
-<h2 class="text-2xl font-bold text-center mb-6">Admin panel</h2>
+<div class="max-w-3xl mx-auto mt-10">
+    <div class="mb-6 text-center">
+        <a href="/" class="text-blue-600 hover:underline">Vrati se na glavnu stranicu</a>
+        <h2 class="text-3xl font-bold mt-4">Admin panel</h2>
+    </div>
 
-<p>Parking Mesta</p>
-    {% for spot in spots %}
-        <div>
-            {{ spot.number }}
+    <div class="mb-8">
+        <h3 class="text-xl font-semibold mb-4">Postojeća parking mesta</h3>
+        <div class="grid grid-cols-3 gap-4">
+            {% for spot in spots %}
+                <div class="bg-gray-100 p-4 rounded-lg shadow flex justify-between items-center">
+                    <span class="font-medium">#{{ spot.number }}</span>
+                    <form method="POST" action="{% url 'remove_spot' company_id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="spot_id" value="{{ spot.id }}">
+                        <button type="submit" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition">
+                            Ukloni
+                        </button>
+                    </form>
+                </div>
+            {% empty %}
+                <p class="text-gray-500">Nema dodatih parking mesta.</p>
+            {% endfor %}
         </div>
-    {% endfor %}
+    </div>
+    {% if messages %}
+        <div id="message-container" class="mb-6">
+            {% for message in messages %}
+                <div class="{% if message.tags == 'error' %}bg-red-100 text-red-800 border-red-400{% else %}bg-green-100 text-green-800 border-green-400{% endif %} 
+                            border px-4 py-3 rounded relative mb-2 transition duration-500 ease-in-out">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+    <div class="mb-10">
+        <h3 class="text-xl font-semibold mb-4">Dodaj novo mesto</h3>
+        <form method="POST" action="{% url 'add_spot' company_id %}" class="flex items-center gap-4">
+            {% csrf_token %}
+            <input type="number" name="spot_num" placeholder="Broj mesta" required
+                   class="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400" />
+            <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition">
+                Dodaj mesto
+            </button>
+        </form>
+    </div>
 
-<p>Dodaj parking mesto</p>
-<form method="POST" action="{% url 'add_spot' company_id%}">
-    {% csrf_token %}
-    <input type="text" placeholder="broj mesta", name="spot_num">
-    <button>Dodaj Mesto</button>
-</form>
+    <div>
+        <h3 class="text-xl font-semibold mb-4">Korisnici</h3>
+        <div class="grid grid-cols-1 gap-4">
+            {% for username in usernames %}
+                <div class="bg-gray-100 p-4 rounded-lg shadow flex justify-between items-center">
+                    <span class="font-medium">{{ username }}</span>
+                    <form method="POST" action="{% url 'remove_user' company_id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="username" value="{{ username }}">
+                        <button type="submit" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition">
+                            Ukloni
+                        </button>
+                    </form>
+                </div>
+            {% empty %}
+                <p class="text-gray-500">Nema korisnika.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const msgContainer = document.getElementById('message-container');
+        if (msgContainer) {
+            setTimeout(() => {
+                msgContainer.style.opacity = '0';
+                msgContainer.style.transition = 'opacity 1.5s ease-out';
+                setTimeout(() => {
+                    msgContainer.remove();
+                }, 500);
+            }, 1500);
+        }
+    });
+</script>
+
 {% endblock %}
