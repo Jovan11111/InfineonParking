@@ -54,6 +54,10 @@
 <script>
 document.addEventListener("DOMContentLoaded", function() {
     let datePicker = document.getElementById("date-picker");
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("invalid_date") === "true") {
+        alert("Izabrali ste nevažeći datum. Prikazuju se podaci za današnji dan.");
+    }
 
     let today = new Date().toLocaleString("sv", { timeZone: "CET"}).split(' ')[0];
     
@@ -72,6 +76,7 @@ document.addEventListener("DOMContentLoaded", function() {
     if (selectedDate && selectedDate >= today && selectedDate <= maxDate) {
         datePicker.value = selectedDate;
     } else {
+        alert("Izabrali ste nevažeći datum");
         datePicker.value = today;
     }
 

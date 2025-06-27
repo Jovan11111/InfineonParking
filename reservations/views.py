@@ -2,23 +2,30 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout
 from django.contrib.auth.forms import AuthenticationForm
 from .forms import CustomUserCreationForm
-from datetime import datetime
+from datetime import datetime, timedelta
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from .models import Reservation, ParkingSpot, WaitlistEntry
 from django.http import JsonResponse
 from django.core.mail import send_mail
 import json
+from django.middleware.csrf import rotate_token
 
 def login_user(request):
     if request.user.is_authenticated:
         return redirect('/main')
-
+    
+    rotate_token(request)
+    
     if request.method == 'POST':
         form = AuthenticationForm(data=request.POST)
         if form.is_valid():
             user = form.get_user()
-            login(request, user)
+            login(request, user)    
+            if request.POST.get('remember_me'):
+                request.session.set_expiry(315360000)  # 10 years
+            else:
+                request.session.set_expiry(0)        
             return redirect('/main') 
     else:
         form = AuthenticationForm()
@@ -41,7 +48,15 @@ def register_user(request):
 
 @login_required
 def main_page(request):
+    today = datetime.today().date()
+    max_day = today + timedelta(days=7)
+    
     date = request.GET.get('date', datetime.today().strftime('%Y-%m-%d'))
+    selected_date = datetime.strptime(date, '%Y-%m-%d').date()
+    
+    if not (today <= selected_date <= max_day):
+        return redirect(f'/main?date={today.strftime("%Y-%m-%d")}&invalid_date=true')
+    
     spots = ParkingSpot.objects.all()
     user = request.user
 
