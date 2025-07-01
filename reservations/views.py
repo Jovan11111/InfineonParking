@@ -7,9 +7,9 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from .models import Reservation, ParkingSpot, WaitlistEntry
 from django.http import JsonResponse
-from django.core.mail import send_mail
 import json
 from django.middleware.csrf import rotate_token
+from .async_email import send_mail_async
 
 def login_user(request):
     if request.user.is_authenticated:
@@ -92,8 +92,60 @@ def main_page(request):
 
     return render(request, 'main.html', context)
 
+@login_required
+def get_spots_for_date(request):
+    date_str = request.GET.get('date')
+    try:
+        date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        return JsonResponse({'error': 'Nevažeći datum'}, status=400)
 
-@csrf_exempt
+    today = datetime.today().date()
+    max_day = today + timedelta(days=7)
+
+    if not (today <= date <= max_day):
+        return JsonResponse({'error': 'Datum van opsega'}, status=400)
+
+    spots_data = []
+    spots = ParkingSpot.objects.all()
+    for spot in spots:
+        reservation = Reservation.objects.filter(date=date, spot=spot).first()
+        spots_data.append({
+            'id': spot.id,
+            'number': spot.number,
+            'reserved': bool(reservation),
+            'reserved_by': reservation.user.username if reservation else None
+        })
+
+    user = request.user
+    user_has_reservation = False
+
+    for spot in spots:
+        reservation = Reservation.objects.filter(date=date, spot=spot).first()
+        if reservation:
+            spot.reserved = True
+            spot.reserved_by = reservation.user.username
+            if reservation.user == user:
+                user_has_reservation = True
+        else:
+            spot.reserved = False
+            spot.reserved_by = None
+
+    already_in_queue = WaitlistEntry.objects.filter(user=user, date=date).exists()
+
+    all_spots_taken = (
+        all(s.reserved for s in spots) and 
+        not user_has_reservation and 
+        not already_in_queue
+    )
+
+    num_interested = WaitlistEntry.objects.filter(date=date).count()
+    return JsonResponse({
+        'spots': spots_data,
+        'num_interested' : num_interested,
+        'all_spots_taken': all_spots_taken
+    })
+
 @login_required
 def reserve_spot(request):
     if request.method == "POST":
@@ -110,11 +162,10 @@ def reserve_spot(request):
             return JsonResponse({"success": False, "error": "Mesto je vec rezervisano!"})
 
         Reservation.objects.create(user=request.user, spot=spot, date=date)
-        return JsonResponse({"success": True})
+        return JsonResponse({"success": True, "reserved_by": request.user.username})
 
     return JsonResponse({"success": False, "error": "Invalid request method"})
 
-@csrf_exempt
 @login_required
 def unreserve_spot(request):
     if request.method == "POST":
@@ -136,7 +187,7 @@ def unreserve_spot(request):
         entry = WaitlistEntry.objects.filter(date=date).order_by('timestamp').first()
         
         if not entry:
-            return JsonResponse({"success": True})
+            return JsonResponse({"success": True, "waitlist_entry": None})
 
         Reservation.objects.create(
             user=entry.user,
@@ -144,29 +195,31 @@ def unreserve_spot(request):
             date=date
         )
 
-        send_mail(
-            subject="Parking spot reserved for you!",
-            message=f"You have been automatically assigned a spot ({spot}) for {date}.",
-            from_email="infineonparking@gmail.com",
-            recipient_list=[entry.user.email],
-            fail_silently=False,
-        )
+        send_mail_async("Parking spot reserved for you!", 
+                        f"You have been automatically assigned a spot ({spot}) for {date}.", 
+                        "infineonparking@gmail.com",
+                        [entry.user.email]
+                        )
 
         entry.delete()
 
-        return JsonResponse({"success": True})
+        return JsonResponse({
+            "success": True, 
+            "waitlist_entry": entry.user.username
+        })
     return JsonResponse({"success": False, "error": "Invalid request method"})
 
 @login_required
 def interest_queue(request):
     if request.method == "POST":
         date_str = request.POST.get("date")
+        print(date_str)
         user = request.user
         try:
             date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
         except (ValueError, TypeError):
-            return redirect('/main')
+            return JsonResponse({"success": False, "error": "Invalid request method"})
 
         WaitlistEntry.objects.create(user=user, date=date_obj)
 
-    return redirect('/main')
+    return JsonResponse({"success": True})

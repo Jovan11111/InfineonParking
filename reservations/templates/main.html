@@ -16,6 +16,7 @@
                     text-white font-bold w-24 h-24 flex items-center justify-center 
                     rounded-lg shadow-lg cursor-pointer transition duration-200 hover:scale-105" 
              data-spot-id="{{ spot.id }}"
+             data-spot-number="{{ spot.number }}"
              data-reserved-by="{{ spot.reserved_by }}">
             {% if spot.reserved %}
                 {{ spot.reserved_by }}  <br>
@@ -26,20 +27,18 @@
         </div>
     {% endfor %}
 </div>
-<div class="mt-6 flex justify-center">
-    <form method="POST" action="{% url 'interest_queue' %}" id="interest-form">
-        {% csrf_token %}
-        <input type="hidden" name="date" value="{{ date_selected }}">
-        <p class="mb-2">Broj zainteresovanih: {{ num_interested }}</p>
-        <button type="submit" 
-                class="px-6 py-2 rounded-lg text-white font-semibold 
-                       transition duration-200
-                       {% if all_spots_taken %} bg-blue-600 hover:bg-blue-700 {% else %} bg-blue-300 cursor-not-allowed {% endif %}"
-                {% if not all_spots_taken %} disabled {% endif %}>
-            Zainteresovan
-        </button>
-    </form>
+<div class="mt-6 flex flex-col items-center space-y-2">
+    <p class="mb-2 text-center" id="interest-count"> Broj zainteresovanih: {{ num_interested }} </p>
+    <div id="interest-button"
+         class="px-6 py-2 rounded-lg text-white font-semibold 
+                transition duration-200
+                {% if all_spots_taken %} bg-blue-600 hover:bg-blue-700 cursor-pointer {% else %} bg-blue-300 cursor-not-allowed {% endif %}"
+         data-date="{{ date_selected }}"
+         {% if not all_spots_taken %} data-disabled="true" {% endif %}>
+        Zainteresovan
+    </div>
 </div>
+
 <div class="mt-6 flex justify-center">
     <form method="POST" action="{% url 'logout_user' %}">
         {% csrf_token %}
@@ -80,70 +79,224 @@ document.addEventListener("DOMContentLoaded", function() {
         datePicker.value = today;
     }
 
-    datePicker.addEventListener("change", function() {
+    datePicker.addEventListener("change", function () {
         if (datePicker.value) {
-            window.location.href = "/main?date=" + datePicker.value;
+            fetch(`/get_spots/?date=${datePicker.value}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                        return;
+                    }
+
+                    const spotsContainer = document.getElementById("parking-spots");
+                    spotsContainer.innerHTML = "";
+
+                    data.spots.forEach(spot => {
+                        const spotDiv = document.createElement("div");
+                        spotDiv.className = `spot ${spot.reserved ? "reserved bg-red-500" : "free bg-green-500"} 
+                            text-white font-bold w-24 h-24 flex items-center justify-center 
+                            rounded-lg shadow-lg cursor-pointer transition duration-200 hover:scale-105`;
+                        spotDiv.dataset.spotId = spot.id;
+                        spotDiv.dataset.spotNumber = spot.number;
+                        if (spot.reserved_by) {
+                            spotDiv.dataset.reservedBy = spot.reserved_by;
+                            spotDiv.innerHTML = `${spot.reserved_by}<br>${spot.number}`;
+                        } else {
+                            spotDiv.innerHTML = spot.number;
+                        }
+
+                        if (spot.reserved && (spot.reserved_by === currentUser || isSuperUser)) {
+                            attachUnreserveListener(spotDiv);
+                        } else if (!spot.reserved) {
+                            attachReserveListener(spotDiv);
+                        }
+
+                        spotsContainer.appendChild(spotDiv);
+                    });
+
+                    const countEl = document.getElementById("interest-count");
+                    countEl.textContent = `Broj zainteresovanih: ${data.num_interested}`;
+
+                    const interestBtn = document.getElementById("interest-button");
+                    if (interestBtn) {
+                        interestBtn.dataset.date = datePicker.value;
+
+                        if (data.all_spots_taken) {
+                            interestBtn.dataset.disabled = "false";
+                            interestBtn.classList.remove("bg-blue-300", "cursor-not-allowed");
+                            interestBtn.classList.add("bg-blue-600", "hover:bg-blue-700", "cursor-pointer");
+                        } else {
+                            interestBtn.dataset.disabled = "true";
+                            interestBtn.classList.remove("bg-blue-600", "hover:bg-blue-700", "cursor-pointer");
+                            interestBtn.classList.add("bg-blue-300", "cursor-not-allowed");
+                        }
+                    }
+                })
+                .catch(err => {
+                    console.log(err);
+                    alert("Greška prilikom učitavanja podataka.");
+                });
         }
     });
 
-    document.querySelectorAll(".spot.free").forEach(spot => {
-        spot.addEventListener("click", function() {
-            let spotId = this.dataset.spotId;
-            if (!selectedDate) {
-                alert("Izaberite datum za koji zelite da rezervisete mesto");
-                return;
-            }
-            if (confirm("Da li ste sigurni da zelite da rezervisete ovo mesto?")) {
-                fetch("/reserve/", {
+
+    const currentUser = "{{ request.user.username }}";
+    const isSuperUser = "{{ request.user.is_superuser }}" === "True";
+    const csrfToken = "{{ csrf_token }}";
+
+    function handleReserveClick(event) {
+        const spot = event.currentTarget;
+        const spotId = spot.dataset.spotId;
+        const spotNumber = spot.textContent.trim();
+
+        if (!selectedDate) {
+            alert("Izaberite datum za koji zelite da rezervisete mesto");
+            return;
+        }
+
+        if (confirm("Da li ste sigurni da zelite da rezervisete ovo mesto?")) {
+            fetch("/reserve/", {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": csrfToken,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ spot_id: spotId, date: datePicker.value })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    spot.classList.remove("free", "bg-green-500");
+                    spot.classList.add("reserved", "bg-red-500");
+                    spot.innerHTML = `${data.reserved_by}<br>${spotNumber}`;
+                    spot.dataset.reservedBy = data.reserved_by;
+                    spot.dataset.spotNumber = spotNumber;
+
+                    spot.removeEventListener("click", handleReserveClick);
+                    attachUnreserveListener(spot);
+                } else {
+                    alert(data.error);
+                }
+            });
+        }
+    }
+
+    function handleUnreserveClick(event) {
+        const spot = event.currentTarget;
+        const spotId = spot.dataset.spotId;
+        const reservedBy = spot.dataset.reservedBy;
+        const spotNumber = spot.dataset.spotNumber;
+
+        if (reservedBy === currentUser || isSuperUser) {
+            if (confirm("Da li ste sigurni da zelite da otkazete rezervaciju?")) {
+                fetch("/unreserve/", {
                     method: "POST",
                     headers: {
-                        "X-CSRFToken": "{{ csrf_token }}",
+                        "X-CSRFToken": csrfToken,
                         "Content-Type": "application/json"
                     },
                     body: JSON.stringify({ spot_id: spotId, date: datePicker.value })
-                }).then(response => response.json()).then(data => {
+                })
+                .then(response => response.json())
+                .then(data => {
                     if (data.success) {
-                        location.reload();
+                        if (data.waitlist_entry){
+                            spot.innerHTML = `${data.waitlist_entry}<br>${spotNumber}`;
+                            spot.dataset.reservedBy = data.waitlist_entry;
+                            const countEl = document.getElementById("interest-count");
+                            const match = countEl.textContent.match(/\d+/);
+                            if (match) {
+                                let count = parseInt(match[0]);
+                                countEl.textContent = `Broj zainteresovanih: ${count - 1}`;
+                            }
+
+                        } else{
+                            spot.classList.remove("reserved", "bg-red-500");
+                            spot.classList.add("free", "bg-green-500");
+                            spot.innerHTML = spotNumber;
+                            delete spot.dataset.reservedBy;
+                            spot.removeEventListener("click", handleUnreserveClick);
+                            attachReserveListener(spot);
+                        }
+                        
                     } else {
                         alert(data.error);
                     }
                 });
             }
-        });
+        }
+    }
+
+    function attachReserveListener(spot) {
+        spot.removeEventListener("click", handleReserveClick);  
+        spot.addEventListener("click", handleReserveClick);
+    }
+
+    function attachUnreserveListener(spot) {
+        const reservedBy = spot.dataset.reservedBy;
+        if (reservedBy === currentUser || isSuperUser) {
+            spot.removeEventListener("click", handleUnreserveClick);  
+            spot.addEventListener("click", handleUnreserveClick);
+        }
+    }
+
+    document.querySelectorAll(".spot").forEach(spot => {
+        if (!spot.dataset.spotNumber) {
+            spot.dataset.spotNumber = spot.textContent.trim();
+        }
+
+        if (spot.classList.contains("free")) {
+            attachReserveListener(spot);
+        } else if (spot.classList.contains("reserved")) {
+            attachUnreserveListener(spot);
+        }
     });
 
-    document.querySelectorAll(".spot.reserved").forEach(spot => {
-        let reservedBy = spot.dataset.reservedBy;
-        let currentUser = "{{ request.user.username }}";
-
-        if (reservedBy === currentUser || "{{ request.user.is_superuser }}" === "True") {
-            spot.addEventListener("click", function() {
-                let spotId = this.dataset.spotId;
-                if (confirm("Da li ste sigurni da ne zelite da ovo mesto bude neregistrovano?")) {
-                    fetch("/unreserve/", {
-                        method: "POST",
-                        headers: {
-                            "X-CSRFToken": "{{ csrf_token }}",
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify({ spot_id: spotId, date: datePicker.value })
-                    }).then(response => response.json()).then(data => {
-                        if (data.success) {
-                            location.reload();
-                        } else {
-                            alert(data.error);
-                        }
-                    });
-                }
-            });
+    const interestDiv = document.getElementById("interest-button");
+    interestDiv.addEventListener("click", function () {
+        if (interestDiv.dataset.disabled === "true") {
+            return;
         }
+
+        const date = interestDiv.dataset.date;
+
+        fetch("{% url 'interest_queue' %}", {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": csrfToken,
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: new URLSearchParams({ date })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                interestDiv.dataset.disabled = "true";
+                interestDiv.classList.remove("bg-blue-600", "hover:bg-blue-700", "cursor-pointer");
+                interestDiv.classList.add("bg-blue-300", "cursor-not-allowed");
+
+                const countEl = document.getElementById("interest-count");
+                const match = countEl.textContent.match(/\d+/);
+                if (match) {
+                    let count = parseInt(match[0]);
+                    countEl.textContent = `Broj zainteresovanih: ${count + 1}`;
+                }
+
+                alert("Zabeleženo je da ste zainteresovani.");
+            } else {
+                alert(data.error || "Greška pri dodavanju u listu.");
+            }
+        })
+        .catch(err => {
+            console.error("Greška:", err);
+            alert("Nešto nije u redu.");
+        });
     });
 });
 
 document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('interest-form');
-
-    
     if (form) {
         form.addEventListener('submit', function (e) {
             e.preventDefault(); 
