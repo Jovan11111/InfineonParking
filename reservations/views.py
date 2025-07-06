@@ -4,8 +4,7 @@ from django.contrib.auth.forms import AuthenticationForm
 from .forms import CustomUserCreationForm
 from datetime import datetime, timedelta
 from django.contrib.auth.decorators import login_required
-from django.views.decorators.csrf import csrf_exempt
-from .models import Reservation, ParkingSpot, WaitlistEntry
+from .models import Reservation, ParkingSpot, WaitlistEntry, UserProfile
 from django.http import JsonResponse
 import json
 from django.middleware.csrf import rotate_token
@@ -23,7 +22,7 @@ def login_user(request):
             user = form.get_user()
             login(request, user)    
             if request.POST.get('remember_me'):
-                request.session.set_expiry(315360000)  # 10 years
+                request.session.set_expiry(315360000) 
             else:
                 request.session.set_expiry(0)        
             return redirect('/main') 
@@ -219,7 +218,10 @@ def interest_queue(request):
             date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
         except (ValueError, TypeError):
             return JsonResponse({"success": False, "error": "Invalid request method"})
+        
+        user_profile = UserProfile.objects.get(user=user)
+        company = user_profile.company
 
-        WaitlistEntry.objects.create(user=user, date=date_obj)
+        WaitlistEntry.objects.create(user=user, date=date_obj, company=company)
 
     return JsonResponse({"success": True})

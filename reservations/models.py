@@ -8,7 +8,7 @@ class Company(models.Model):
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     is_moderator = models.BooleanField(default=False)
-    company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True, default=1)
 
     def __str__(self):
         return f"{self.user.username}'s profile"
